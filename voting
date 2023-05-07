@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.0;
+
+contract VotingPlatform {
+    struct Topic {
+        string name;
+        string[] options;
+        mapping(string => uint) voteCount;
+    }
+
+   
+    mapping(uint => Topic) public topics;
+
+    event NewTopic(uint indexed topicId, string name, string[] options);
+
+    event Voted(uint indexed topicId, string option, address indexed voter);
+
+    function createTopic(string memory _name, string[] memory _options) public {
+        require(_options.length > 0, "At least one option is required");
+        uint topicId = uint(keccak256(abi.encodePacked(_name, block.timestamp)));
+        topics[topicId].name = _name;
+        topics[topicId].options = _options;
+        for (uint i = 0; i < _options.length; i++) {
+            topics[topicId].voteCount[_options[i]] = 0;
+        }
+        emit NewTopic(topicId, _name, _options);
+    }
+
+    function deleteTopic(uint _topicId) public {
+        require(bytes(topics[_topicId].name).length > 0, "Topic does not exist");
+        delete topics[_topicId];
+    }
+
+   
+    function vote(uint _topicId, string memory _option) public {
+        require(bytes(topics[_topicId].name).length > 0, "Topic does not exist");
+        require(topics[_topicId].voteCount[_option] != 0, "Invalid option");
+        require(topics[_topicId].voteCount[_option] + 1 > topics[_topicId].voteCount[_option], "Vote count overflow");
+        topics[_topicId].voteCount[_option]++;
+        emit Voted(_topicId, _option, msg.sender);
+    }
+
+   
+    function getTopicDetails(uint _topicId) public view returns (string memory, string[] memory, uint[] memory) {
+        require(bytes(topics[_topicId].name).length > 0, "Topic does not exist");
+        string[] memory options = topics[_topicId].options;
+        uint[] memory voteCounts = new uint[](options.length);
+        for (uint i = 0; i < options.length; i++) {
+            voteCounts[i] = topics[_topicId].voteCount[options[i]];
+        }
+        return (topics[_topicId].name, options, voteCounts);
+    }
+}
