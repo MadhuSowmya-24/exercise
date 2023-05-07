@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.0;
+
+contract CarRental {
+    address public owner;
+    uint256 public numCars;
+    mapping(uint256 => bool) public isCarAvailable;
+    mapping(address => mapping(uint256 => uint256)) public rentedCars;
+    mapping(address => uint256) public balances;
+
+    constructor() {
+        owner = msg.sender;
+        numCars = 3;
+        for (uint256 i = 0; i < numCars; i++) {
+            isCarAvailable[i] = true;
+        }
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only the owner can perform this action");
+        _;
+    }
+
+    modifier carAvailable(uint256 carId) {
+        require(isCarAvailable[carId], "Car is not available for rent");
+        _;
+    }
+
+    function rentCar(uint256 carId) external payable carAvailable(carId) {
+        require(msg.value > 0, "Rent payment must be greater than zero");
+        isCarAvailable[carId] = false;
+        rentedCars[msg.sender][carId] = block.timestamp;
+        balances[msg.sender] += msg.value;
+    }
+
+    function returnCar(uint256 carId) external {
+        require(rentedCars[msg.sender][carId] > 0, "You did not rent this car");
+        uint256 rentStart = rentedCars[msg.sender][carId];
+        uint256 rentEnd = block.timestamp;
+        uint256 rentTime = rentEnd - rentStart;
+        uint256 rentCost = rentTime * 1 ether;
+        balances[msg.sender] -= rentCost;
+        isCarAvailable[carId] = true;
+        rentedCars[msg.sender][carId] = 0;
+        payable(owner).transfer(rentCost);
+    }
+
+    function withdraw() external {
+        require(balances[msg.sender] > 0, "No balance to withdraw");
+        uint256 amount = balances[msg.sender];
+        balances[msg.sender] = 0;
+        payable(msg.sender).transfer(amount);
+    }
+
+    function setNumCars(uint256 _numCars) external onlyOwner {
+        require(_numCars > 0, "Number of cars must be greater than zero");
+        numCars = _numCars;
+        for (uint256 i = 0; i < numCars; i++) {
+            isCarAvailable[i] = true;
+        }
+    }
+}
